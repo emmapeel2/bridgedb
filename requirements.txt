@@ -1,7 +1,7 @@
 Babel==2.5.1
 BeautifulSoup==3.2.1
 Mako==0.8.1
-Twisted==16.1.1
+Twisted>=19.2.1
 ipaddr==2.1.11
 pycrypto==2.6.1
 pyOpenSSL>=17.5.0
