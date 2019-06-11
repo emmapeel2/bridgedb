@@ -61,6 +61,8 @@ from twisted.mail import smtp
 from twisted.mail.smtp import rfc822date
 from twisted.python import failure
 
+import rfc822
+
 from zope.interface import implements
 
 from bridgedb import __version__
@@ -254,7 +256,7 @@ class SMTPMessage(object):
         for line in self.lines:
             rawMessage.writelines(unicode(line.decode('utf8')) + u'\n')
         rawMessage.seek(0)
-        return smtp.rfc822.Message(rawMessage)
+        return rfc822.Message(rawMessage)
 
 
 class SMTPIncomingDelivery(smtp.SMTP):
