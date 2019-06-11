@@ -9,6 +9,6 @@ pygeoip==0.2.7
 gnupg==2.0.1
 pillow>=2.6.1
 qrcode==5.0.1
-service_identity==14.0.0
+service_identity==18.1.0
 git+https://git.torproject.org/stem.git@1.7.1#egg=stem
-zope.interface==3.6.1
+zope.interface==4.4.2
