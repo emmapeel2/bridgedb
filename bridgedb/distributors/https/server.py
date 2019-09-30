@@ -28,6 +28,7 @@ import random
 import re
 import time
 import os
+import operator
 
 from functools import partial
 
@@ -36,6 +37,8 @@ from ipaddr import IPv4Address
 import mako.exceptions
 from mako.template import Template
 from mako.lookup import TemplateLookup
+
+import babel.core
 
 from twisted.internet import defer
 from twisted.internet import reactor
@@ -86,6 +89,9 @@ logging.debug("Set template root to %s" % TEMPLATE_DIR)
 
 #: Localisations which BridgeDB supports which should be rendered right-to-left.
 rtl_langs = ('ar', 'he', 'fa', 'gu_IN', 'ku')
+
+#: A list of supported language tuples. Use getSortedLangList() to read this variable.
+supported_langs = []
 
 # We use our metrics singleton to keep track of BridgeDB metrics such as
 # "number of failed HTTPS bridge requests."
@@ -154,6 +160,36 @@ def redirectMaliciousRequest(request):
     request.write(redirectTo(base64.b64decode("aHR0cDovLzJnaXJsczFjdXAuY2Ev"), request))
     request.finish()
     return request
+
+
+def getSortedLangList():
+    """
+    Build and return a list of tuples that contains all of BridgeDB's supported
+    languages, e.g.: [("Azərbaycan", "az"), ("Català", "ca"), ..., ].
+
+    :rtype: list
+    :returns: A list of tuples of the form (language, language-locale). The
+        list is sorted alphabetically by language.  We use this list to
+        provide a language switcher in BridgeDB's web interface.
+    """
+
+    # If we already compiles our languages, return them right away.
+    global supported_langs
+    if supported_langs:
+        return supported_langs
+    logging.debug("Building supported languages for language switcher.")
+
+    langDict = {}
+    for l in translations.getSupportedLangs():
+        try:
+            langDict[l] = "%s (%s)" % (babel.core.Locale.parse(l, sep="_").display_name.capitalize(), l)
+        except Exception as err:
+            logging.warning("Failed to create language switcher option for %s: %s" % (l, err))
+
+    # Sort languages alphabetically.
+    supported_langs = sorted(langDict.items(), key=operator.itemgetter(1))
+
+    return supported_langs
 
 
 class MaliciousRequest(Exception):
@@ -345,7 +381,11 @@ class TranslatedTemplateResource(CustomErrorHandlingResource, CSPResource):
             langs = translations.getLocaleFromHTTPRequest(request)
             rtl = translations.usingRTLLang(langs)
             template = lookup.get_template(self.template)
-            rendered = template.render(strings, rtl=rtl, lang=langs[0])
+            rendered = template.render(strings,
+                                       getSortedLangList(),
+                                       rtl=rtl,
+                                       lang=langs[0],
+                                       langOverride=translations.isLangOverridden(request))
         except Exception as err:  # pragma: no cover
             rendered = replaceErrorPage(request, err)
         request.setHeader("Content-Type", "text/html; charset=utf-8")
@@ -469,8 +509,10 @@ class CaptchaProtectedResource(CustomErrorHandlingResource, CSPResource):
             imgstr = 'data:image/jpeg;base64,%s' % base64.b64encode(image)
             template = lookup.get_template('captcha.html')
             rendered = template.render(strings,
+                                       getSortedLangList(),
                                        rtl=rtl,
                                        lang=langs[0],
+                                       langOverride=translations.isLangOverridden(request),
                                        imgstr=imgstr,
                                        challenge_field=challenge)
         except Exception as err:
@@ -994,8 +1036,10 @@ class BridgesResource(CustomErrorHandlingResource, CSPResource):
                 rtl = translations.usingRTLLang(langs)
                 template = lookup.get_template('bridges.html')
                 rendered = template.render(strings,
+                                           getSortedLangList(),
                                            rtl=rtl,
                                            lang=langs[0],
+                                           langOverride=translations.isLangOverridden(request),
                                            answer=bridgeLines,
                                            qrcode=qrcode)
             except Exception as err:
